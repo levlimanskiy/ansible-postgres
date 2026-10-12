@@ -1,0 +1,3 @@
+{% for rule in postgres__hba %}
+{{ rule.type }} {{ rule.database }} {{ rule.user }} {{ rule.address | default('') }} {{ rule.method }}
+{% endfor %}

@@ -1,0 +1,15 @@
+[Unit]
+Description=PostgreSQL ({{ postgres__data_dir }})
+After=network.target
+
+[Service]
+Type=simple
+User=postgres
+ExecStart={{ __pg_bindir }}/postgres -D {{ postgres__data_dir }}
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=mixed
+KillSignal=SIGINT
+TimeoutSec=120
+
+[Install]
+WantedBy=multi-user.target

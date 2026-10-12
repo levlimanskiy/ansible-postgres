@@ -1,3 +1,11 @@
-#SPDX-License-Identifier: MIT-0
----
-# defaults file for roles/postgres
+postgres__packages:
+  - postgresql
+  - python3-psycopg2
+
+postgres__data_dir: /data/postgres/data
+
+postgres__opts: {}
+
+postgres__hba:
+  - { type: local, database: all, user: postgres, method: peer }
+  - { type: local, database: all, user: all, method: peer }

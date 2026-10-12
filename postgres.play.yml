@@ -1,0 +1,5 @@
+- name: Install/Update PSQL
+  hosts: vm1
+  become: true
+  roles:
+    - postgres

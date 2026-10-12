@@ -1,3 +1,13 @@
-#SPDX-License-Identifier: MIT-0
----
-# handlers file for roles/postgres
+- name: daemon_reload
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: restart postgres
+  ansible.builtin.systemd:
+    name: "{{ __pg_service }}"
+    state: restarted
+
+- name: reload postgres
+  ansible.builtin.systemd:
+    name: "{{ __pg_service }}"
+    state: reloaded

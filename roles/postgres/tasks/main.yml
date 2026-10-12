@@ -1,3 +1,107 @@
-#SPDX-License-Identifier: MIT-0
----
-# tasks file for roles/postgres
+- name: Install/Update PSQL
+  ansible.builtin.apt:
+    name: "{{ postgres__packages }}"
+    state: latest
+    update_cache: true
+
+- name: Create /data
+  ansible.builtin.file:
+    path: /data
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create /data/postgres
+  ansible.builtin.file:
+    path: /data/postgres
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0700"
+
+- name: Find pg_ctl dir
+  ansible.builtin.command: pg_config --bindir
+  register: pg_bindir_output
+  changed_when: false
+
+- name: Set pg_ctl bin dir
+  ansible.builtin.set_fact:
+    __pg_bindir: "{{ pg_bindir_output.stdout }}"
+
+- name: Set pg_ctl command
+  ansible.builtin.file:
+    src: "{{ pg_bindir_output.stdout }}/pg_ctl"
+    dest: /usr/bin/pg_ctl
+    state: link
+  become: yes
+
+- name: Init DB
+  ansible.builtin.command: 
+    cmd: "pg_ctl initdb -D {{ postgres__data_dir }}"
+    creates: "{{ postgres__data_dir }}/PG_VERSION"
+  become: true
+  become_user: postgres
+
+- name: Configure postgresql.conf
+  ansible.builtin.lineinfile:
+    path: "{{ postgres__data_dir }}/postgresql.conf"
+    regexp: "^#?{{ item.key | regex_escape() }}\\s*="
+    line: "{{ item.key }} = {{ item.value }}"
+    owner: postgres
+    group: postgres
+    mode: "0600"
+  loop: "{{ postgres__opts | dict2items }}"
+  notify:
+    - restart postgres
+
+- name: Configure pg_hba.conf
+  ansible.builtin.template:
+    src: pg_hba.conf.j2
+    dest: "{{ postgres__data_dir }}/pg_hba.conf"
+    owner: postgres
+    group: postgres
+    mode: "0600"
+    notify:
+    - reload postgres
+
+- name: Get postgres version raw
+  ansible.builtin.command: pg_config --version
+  register: __pg_version_raw
+  changed_when: false
+
+- name: Get postgres version 
+  ansible.builtin.set_fact:
+    __pg_version: "{{ (__pg_version_raw.stdout.split()[1]).split('.')[0] }}"
+
+- name: Stop default cluster
+  ansible.builtin.systemd:
+    name: "postgresql@{{ __pg_version }}-main"
+    state: stopped
+    masked: true
+
+- name: Install system unit
+  ansible.builtin.template:
+    src: postgres-custom.service.j2
+    dest: "/etc/systemd/system/{{ __pg_service }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - daemon_reload
+    - restart postgres
+
+- name: Enable and start Postgres
+  ansible.builtin.systemd:
+    name: "{{ __pg_service }}"
+    state: started
+    enabled: true
+
+- name: Check SELECT 1
+  ansible.builtin.command: psql -tA -c "SELECT 1"
+  become: true
+  become_user: postgres
+  register: __pg_select
+  changed_when: false
+  retries: 10
+  until: __pg_select.rc == 0
