@@ -1,0 +1,18 @@
+postgres__opts:
+  listen_addresses: "'localhost'"
+  logging_collector: "'on'"
+  log_checkpoints: "'on'"
+  max_connections: 150
+
+postgres__databases:
+  - name: appdb
+  - name: analytics
+    encoding: UTF8
+
+postgres__users:
+  - name: app
+    password: "{{ vault_app_password }}"
+  - name: analyst
+    password: "{{ vault_analyst_password }}"
+
+postgres__exporter_db_password: "{{ vault_exporter_password }}"

@@ -1,38 +1,86 @@
-Role Name
-=========
+# Роль: postgres
 
-A brief description of the role goes here.
+Устанавливает PostgreSQL из стандартных репозиториев Ubuntu, инициализирует
+кластер в произвольном каталоге данных, управляет `postgresql.conf` и
+`pg_hba.conf`, запускает PostgreSQL под собственной systemd-службой, создаёт
+базы данных и пользователей и устанавливает postgres-exporter как systemd-службу.
 
-Requirements
-------------
+## Требования
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+- Целевой хост: Ubuntu с systemd и доступом к sudo.
+- Контроллер: Ansible и коллекция `community.postgresql`:
+  `ansible-galaxy collection install -r requirements.yml`
+- Контроллеру нужен доступ в интернет для скачивания релиза экспортера.
 
-Role Variables
---------------
+## Переменные
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+Заданы в `defaults/main.yml`. Любую из них можно переопределить.
 
-Dependencies
-------------
+| Переменная | Значение по умолчанию | Описание |
+|---|---|---|
+| `postgres__packages` | `[postgresql, python3-psycopg2, acl]` | Устанавливаемые пакеты |
+| `postgres__data_dir` | `/data/postgres/data` | Каталог данных кластера (`$PGDATA`) |
+| `postgres__opts` | `{}` | Словарь параметров `postgresql.conf`. Строковые значения нужно заключать во внутренние кавычки, например `"'localhost'"` |
+| `postgres__hba` | локальные правила peer + `127.0.0.1/32` scram-sha-256 | Список правил `pg_hba.conf` (ключи: `type`, `database`, `user`, `address` (необязательный), `method`) |
+| `postgres__databases` | `[]` | Список словарей: `name` (обязательный), `encoding`, `state` (необязательные) |
+| `postgres__users` | `[]` | Список словарей: `name`, `password` |
+| `postgres__exporter_version` | `0.20.1` | Версия релиза postgres-exporter |
+| `postgres__exporter_port` | `9187` | Порт экспортера (слушает на 127.0.0.1) |
+| `postgres__exporter_db_user` | `postgres_exporter` | Роль БД для экспортера (входит в `pg_monitor`) |
+| `postgres__exporter_db_password` | нет, обязательная | Пароль этой роли. Задаётся в инвентаре, значение берётся из vault |
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+Внутренние переменные (префикс `__`) лежат в `vars/main.yml` и не предназначены
+для изменения.
 
-Example Playbook
-----------------
+## Секреты
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+Пароли не хранятся в открытом виде. Они определяются в файле, зашифрованном
+`ansible-vault` (`inventories/main/group_vars/all/vault.yml`), а в обычном файле
+переменных на них даются ссылки:
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+```yaml
+postgres__users:
+  - name: app
+    password: "{{ vault_app_password }}"
+postgres__exporter_db_password: "{{ vault_exporter_password }}"
+```
 
-License
--------
+## Пример плейбука
 
-BSD
+```yaml
+- name: Install PostgreSQL
+  hosts: vm1
+  become: true
+  roles:
+    - postgres
+```
 
-Author Information
-------------------
+с, например, такими значениями в `group_vars`:
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+```yaml
+postgres__opts:
+  listen_addresses: "'localhost'"
+  max_connections: 150
+
+postgres__databases:
+  - name: appdb
+  - name: analytics
+    encoding: UTF8
+```
+
+## Примечания
+
+- Служба кластера Ubuntu по умолчанию (`postgresql@<версия>-main`) останавливается
+  и маскируется, так как роль запускает собственную службу (`postgres-custom`)
+  с нестандартным каталогом данных.
+- Изменение `postgresql.conf` перезапускает PostgreSQL, изменение `pg_hba.conf`
+  перечитывает конфигурацию (через хендлеры).
+- Роль идемпотентна: повторный запуск завершается с `changed=0`.
+
+## Проверка
+
+```bash
+ansible vm1 -b -m command -a 'systemctl is-active postgres-custom postgres-exporter'
+ansible vm1 -b --become-user postgres -m command -a 'psql -c "SELECT 1"'
+ansible vm1 -m uri -a 'url=http://127.0.0.1:9187/metrics return_content=true' | grep -o 'pg_up 1'
+```

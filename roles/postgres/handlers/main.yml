@@ -11,3 +11,8 @@
   ansible.builtin.systemd:
     name: "{{ __pg_service }}"
     state: reloaded
+
+- name: restart exporter
+  ansible.builtin.systemd:
+    name: "{{ __exporter_service }}"
+    state: restarted

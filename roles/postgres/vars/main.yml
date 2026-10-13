@@ -1,2 +1,6 @@
 __pg_service: postgres-custom
 
+__exporter_os_user: postgres_exporter
+__exporter_service: postgres-exporter
+__exporter_archive: "postgres_exporter-{{ postgres__exporter_version }}.linux-amd64"
+__exporter_workdir: "/tmp/postgres_exporter_{{ postgres__exporter_version }}"

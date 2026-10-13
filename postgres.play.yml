@@ -1,4 +1,4 @@
-- name: Install/Update PSQL
+- name: Auto-postgres monster
   hosts: vm1
   become: true
   roles:

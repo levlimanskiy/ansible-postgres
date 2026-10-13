@@ -1,5 +1,0 @@
-postgres__opts:
-  listen_addresses: "'localhost'"
-  logging_collector: "'on'"
-  log_checkpoints: "'on'"
-  max_connections: 150

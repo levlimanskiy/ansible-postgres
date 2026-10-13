@@ -62,7 +62,7 @@
     owner: postgres
     group: postgres
     mode: "0600"
-    notify:
+  notify:
     - reload postgres
 
 - name: Get postgres version raw
@@ -105,3 +105,24 @@
   changed_when: false
   retries: 10
   until: __pg_select.rc == 0
+
+- name: Create Databases
+  community.postgresql.postgresql_db:
+    name: "{{ item.name }}"
+    encoding: "{{ item.encoding | default(omit) }}"
+    state: "{{ item.state | default(omit) }}"
+  loop: "{{ postgres__databases }}"
+  become: true
+  become_user: postgres
+
+- name: Create users
+  community.postgresql.postgresql_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password }}"
+    state: present
+  loop: "{{ postgres__users }}"
+  become: true
+  become_user: postgres
+  no_log: true
+
+- ansible.builtin.import_tasks: exporter.yml

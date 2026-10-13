@@ -1,7 +1,8 @@
 postgres__packages:
   - postgresql
   - python3-psycopg2
-
+  - acl
+  
 postgres__data_dir: /data/postgres/data
 
 postgres__opts: {}
@@ -9,3 +10,12 @@ postgres__opts: {}
 postgres__hba:
   - { type: local, database: all, user: postgres, method: peer }
   - { type: local, database: all, user: all, method: peer }
+  - { type: host, database: all, user: all, address: 127.0.0.1/32, method: scram-sha-256 }
+
+postgres__databases: []
+
+postgres__users: []
+
+postgres__exporter_version: "0.20.1"
+postgres__exporter_port: 9187
+postgres__exporter_db_user: postgres_exporter
