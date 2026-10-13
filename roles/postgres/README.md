@@ -48,7 +48,7 @@ postgres__exporter_db_password: "{{ vault_exporter_password }}"
 ## Пример плейбука
 
 ```yaml
-- name: Install PostgreSQL
+- name: Auto-postgres monster
   hosts: vm1
   become: true
   roles:
