@@ -75,12 +75,5 @@ postgres__databases:
   с нестандартным каталогом данных.
 - Изменение `postgresql.conf` перезапускает PostgreSQL, изменение `pg_hba.conf`
   перечитывает конфигурацию (через хендлеры).
-- Роль идемпотентна: повторный запуск завершается с `changed=0`.
 
-## Проверка
 
-```bash
-ansible vm1 -b -m command -a 'systemctl is-active postgres-custom postgres-exporter'
-ansible vm1 -b --become-user postgres -m command -a 'psql -c "SELECT 1"'
-ansible vm1 -m uri -a 'url=http://127.0.0.1:9187/metrics return_content=true' | grep -o 'pg_up 1'
-```
